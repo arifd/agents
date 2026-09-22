@@ -1,28 +1,11 @@
 #!/usr/bin/env bash
 
-# Install this repository's agent configuration for Codex.
+# Install Codex links from this repository's instructions/ directory.
 #
-# The top-level AGENTS.md is always linked into CODEX_HOME. Additional
-# repository directories can be linked by passing their paths as arguments.
-#
-# Existing files or symlinks pointing somewhere else are never overwritten.
-#
-# Usage:
-#
-#   ./install/codex.sh [directory ...]
-#
-# Examples:
-#
-#   # Install only AGENTS.md:
-#   ./install/codex.sh
-#
-#   # Install AGENTS.md and technology-specific standards:
-#   ./install/codex.sh standards
-#
-#   # Install AGENTS.md, standards, and skills:
-#   ./install/codex.sh standards skills
-#
-# CODEX_HOME defaults to ~/.codex when not explicitly set.
+# Each top-level entry in instructions/ is linked into CODEX_HOME. Because the
+# links point at the repository, edits are live; rerun this script after adding
+# or removing a top-level entry. Existing unrelated paths are never overwritten.
+# CODEX_HOME defaults to ~/.codex.
 
 # Exit immediately if any command exits with a non-zero status:
 set -e
@@ -35,43 +18,57 @@ codex_home="${CODEX_HOME:-"$HOME/.codex"}"
 
 mkdir -p "$codex_home"
 
-link() {
-    source="$1"
-    target="$2"
+# Validate every requested link before changing CODEX_HOME:
+while IFS= read -r -d '' source; do
+    target="$codex_home/$(basename "$source")"
 
     if [ -L "$target" ]; then
         current="$(readlink "$target")"
 
         if [ "$current" = "$source" ]; then
-            return
+            continue
         fi
+
+        # A missing source under instructions/ is a stale link this installer
+        # can remove during the cleanup phase.
+        case "$current" in
+            "$repo_root/instructions/"*)
+                if [ ! -e "$current" ]; then
+                    continue
+                fi
+                ;;
+        esac
 
         echo "Refusing to replace existing symlink: $target" >&2
         echo "Currently points to: $current" >&2
         exit 1
     fi
 
+    # A regular path could be user-owned configuration.
     if [ -e "$target" ]; then
         echo "Refusing to replace existing path: $target" >&2
         exit 1
     fi
+done < <(find "$repo_root/instructions" -mindepth 1 -maxdepth 1 -print0)
 
-    ln -s "$source" "$target"
-}
+# Remove links left behind when a top-level instruction is deleted or moved:
+while IFS= read -r -d '' target; do
+    current="$(readlink "$target")"
 
-# Install the global agent instructions:
-link "$repo_root/AGENTS.md" "$codex_home/AGENTS.md"
+    case "$current" in
+        "$repo_root/instructions/"*)
+            if [ ! -e "$current" ]; then
+                rm "$target"
+            fi
+            ;;
+    esac
+done < <(find "$codex_home" -mindepth 1 -maxdepth 1 -type l -print0)
 
-# Install any additional directories requested by the caller:
-for directory in "$@"; do
-    source="$repo_root/$directory"
+# Link every top-level instruction source into Codex home:
+while IFS= read -r -d '' source; do
+    target="$codex_home/$(basename "$source")"
 
-    if [ ! -d "$source" ]; then
-        echo "Directory does not exist: $source" >&2
-        exit 1
+    if [ ! -L "$target" ]; then
+        ln -s "$source" "$target"
     fi
-
-    target="$codex_home/$(basename "$directory")"
-
-    link "$source" "$target"
-done
+done < <(find "$repo_root/instructions" -mindepth 1 -maxdepth 1 -print0)
