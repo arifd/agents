@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
-# Install Codex links from this repository's instructions/ directory.
+# Install this repository's instructions for Codex.
 #
-# Each top-level entry in instructions/ is linked into CODEX_HOME. Because the
-# links point at the repository, edits are live; rerun this script after adding
-# or removing a top-level entry. Existing unrelated paths are never overwritten.
+# Top-level entries in instructions/ are linked for live updates. Skills are
+# copied into ~/.agents/skills so Codex cannot modify the repository through a
+# symlink. Rerun this script after changing skills or instructions.
+# Existing unrelated paths are never overwritten.
 # CODEX_HOME defaults to ~/.codex.
 
 # Exit immediately if any command exits with a non-zero status:
@@ -15,6 +16,10 @@ repo_root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
 # Respect a custom Codex home, otherwise use the default:
 codex_home="${CODEX_HOME:-"$HOME/.codex"}"
+agents_home="${AGENTS_HOME:-"$HOME/.agents"}"
+skills_source="$repo_root/skills"
+skills_target="$agents_home/skills"
+skills_marker=".agents-repo-managed"
 
 mkdir -p "$codex_home"
 
@@ -51,6 +56,38 @@ while IFS= read -r -d '' source; do
     fi
 done < <(find "$repo_root/instructions" -mindepth 1 -maxdepth 1 -print0)
 
+# Validate the repository skills before changing either destination:
+if [ -e "$skills_source" ] && [ ! -d "$skills_source" ]; then
+    echo "Skills source is not a directory: $skills_source" >&2
+    exit 1
+fi
+
+if [ -d "$skills_source" ]; then
+    if [ -L "$skills_target" ] || { [ -e "$skills_target" ] && [ ! -d "$skills_target" ]; }; then
+        echo "Refusing to replace existing skills path: $skills_target" >&2
+        exit 1
+    fi
+
+    while IFS= read -r -d '' source; do
+        if [ ! -d "$source" ]; then
+            echo "Skill is not a directory: $source" >&2
+            exit 1
+        fi
+
+        target="$skills_target/$(basename "$source")"
+
+        if [ -L "$target" ] || { [ -e "$target" ] && [ ! -d "$target" ]; }; then
+            echo "Refusing to replace existing skill path: $target" >&2
+            exit 1
+        fi
+
+        if [ -d "$target" ] && [ ! -f "$target/$skills_marker" ]; then
+            echo "Refusing to replace unmanaged skill directory: $target" >&2
+            exit 1
+        fi
+    done < <(find "$skills_source" -mindepth 1 -maxdepth 1 -print0)
+fi
+
 # Remove links left behind when a top-level instruction is deleted or moved:
 while IFS= read -r -d '' target; do
     current="$(readlink "$target")"
@@ -72,3 +109,24 @@ while IFS= read -r -d '' source; do
         ln -s "$source" "$target"
     fi
 done < <(find "$repo_root/instructions" -mindepth 1 -maxdepth 1 -print0)
+
+# Copy repository skills without touching unrelated skills in ~/.agents/skills:
+if [ -d "$skills_source" ]; then
+    mkdir -p "$skills_target"
+
+    while IFS= read -r -d '' source; do
+        target="$skills_target/$(basename "$source")"
+        mkdir -p "$target"
+        touch "$target/$skills_marker"
+        rsync -a --delete --exclude="$skills_marker" "$source/" "$target/"
+    done < <(find "$skills_source" -mindepth 1 -maxdepth 1 -type d -print0)
+
+    # Remove only skills previously marked as managed by this repository:
+    while IFS= read -r -d '' target; do
+        skill_name="$(basename "$target")"
+
+        if [ ! -d "$skills_source/$skill_name" ] && [ -f "$target/$skills_marker" ]; then
+            rm -r "$target"
+        fi
+    done < <(find "$skills_target" -mindepth 1 -maxdepth 1 -type d -print0)
+fi
