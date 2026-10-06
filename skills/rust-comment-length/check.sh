@@ -1,31 +1,8 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+# This script can be replaced with rustfmt when the feature becomes stable.
+# https://github.com/rust-lang/rustfmt/issues/3349
 
-readonly MAX_LENGTH=80
-
-starts_with_comment() {
-    [[ "$1" =~ ^[[:space:]]*// ]]
-}
-
-failed=0
-
-while IFS= read -r -d '' file; do
-    line_number=0
-
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        ((++line_number))
-
-        if starts_with_comment "$line" && (( ${#line} > MAX_LENGTH )); then
-            printf '%s:%d: comment exceeds %d characters\n' \
-                "$file" "$line_number" "$MAX_LENGTH"
-            failed=1
-        fi
-    done < "$file"
-done < <(
-    find . \
-        -type d -name target -prune -o \
-        -type f -name '*.rs' -print0
-)
-
-exit "$failed"
+# Find comments exceeding 80 graphemes
+! rg --no-heading '^[[:space:]]*//.{79,}' -g '*.rs' -g '!target/' -n

@@ -1,3 +1,8 @@
+---
+name: rust-comment-length
+description: Check and fix Rust comment line-length violations.
+---
+
 # Rust comment length
 
 Ensure that Rust line comments do not exceed 80 characters.
