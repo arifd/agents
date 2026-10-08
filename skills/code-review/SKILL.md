@@ -1,213 +1,122 @@
 ---
 name: code-review
-description: Review code for correctness, simplicity, clarity, maintainability, and fit with the surrounding codebase. Read-only: report findings and recommendations, but never modify files.
+description: Review code for correctness, simplicity, clarity, maintainability, and fit with the surrounding codebase. By default, review the current branch against main or master. Do not modify code.
 ---
 
 # Code Review
 
-Review code critically and constructively. The goal is to identify real problems and meaningful opportunities to improve the code, not to maximize the number of comments.
+Review code critically and constructively. Identify real problems and meaningful opportunities for improvement, not as many comments as possible.
 
-This skill is strictly read-only. Never edit, create, delete, rename, format, or otherwise modify files. Do not apply fixes. Report findings only.
+This is a review-only task. You may inspect files, use non-destructive Git commands, run tests, and perform other safe verification. Never modify the codebase or apply fixes.
+
+## Scope
+
+Unless instructed otherwise, review the current branch against the repository's default branch, typically `main` or `master`.
+
+Use the merge base to identify changes introduced by the current branch. Include relevant uncommitted changes.
+
+Read surrounding code and documentation as needed to understand the changes, but focus findings on problems introduced by the reviewed code rather than unrelated existing issues.
+
+If the requested scope or comparison base is ambiguous, use reasonable judgment and state any important assumptions.
 
 ## Review priorities
 
-Review in the following order. Earlier concerns take precedence over later ones.
+Consider the following, roughly in order of importance.
 
-### 1. Correctness
+### Correctness
 
-First determine what the code is intended to do, then verify that it actually does it.
+Determine what the code is intended to do and whether it actually does it.
 
-Look for:
+Look for bugs, incorrect assumptions, missing edge cases, failure modes, state inconsistencies, and surprising behavior.
 
-- behavior that does not match the apparent intent, specification, or surrounding contract
-- bugs and incorrect assumptions
-- missing or incorrectly handled edge cases
-- error paths and failure modes
-- boundary conditions
-- state inconsistencies
-- concurrency or ordering issues where relevant
-- behavior that is surprising or undocumented
-- tests that give false confidence or fail to exercise important behavior
+Do not assume passing tests imply correctness. Do not invent requirements when intent is unclear.
 
-Do not assume that passing tests imply correctness.
+### Implementation
 
-When intent is ambiguous, say so rather than inventing a requirement.
+Prefer the simplest implementation that clearly expresses the intended behavior.
 
-### 2. Implementation
+Look for unnecessary complexity, over-engineering, excessive indirection, unjustified abstractions, duplication, and convoluted control flow.
 
-Evaluate whether the implementation expresses the intended behavior in the simplest and clearest reasonable form.
+Value abstractions when they genuinely simplify reasoning or establish useful boundaries. Prefer removing complexity over merely reorganizing it.
 
-Prefer code that minimizes the number of concepts a reader must understand.
+Do not suggest changes solely because you would have implemented something differently.
 
-Look for:
+### Documentation
 
-- unnecessary complexity
-- over-engineering
-- premature or unjustified abstraction
-- excessive indirection
-- unnecessary layers, wrappers, helpers, or configuration
-- duplicated logic that would benefit meaningfully from abstraction
-- complicated control flow that could be expressed more directly
-- abstractions that merely relocate complexity rather than remove it
-- abstractions whose cost exceeds the value they provide
-- code that solves a more general problem than the one actually required
+Documentation should help a capable reader understand things that are not obvious from the code.
 
-Do not oppose abstraction categorically. An abstraction is valuable when it meaningfully reduces duplication, isolates a coherent concept, clarifies a boundary, or makes the implementation easier to reason about.
+Look for missing explanations of contracts, invariants, assumptions, side effects, and non-obvious behavior, as well as stale, redundant, or misleading comments.
 
-Prefer removing concepts over reorganizing the same complexity.
+Prefer self-explanatory code over excessive documentation.
 
-Do not suggest changes merely because you would have written the code differently.
+### Naming
 
-### 3. Documentation
+Names should be clear, concise, intuitive, domain-appropriate, and consistent with the surrounding codebase.
 
-Evaluate documentation from the perspective of a capable reader who has never seen the codebase before.
+Flag naming only when it meaningfully affects understanding.
 
-Documentation should provide information that cannot be understood easily from the code itself.
+### Tests
 
-Pay particular attention to public APIs, function boundaries, module boundaries, non-obvious invariants, assumptions, side effects, and surprising behavior.
+Evaluate whether tests provide meaningful confidence in the intended behavior.
 
-Look for:
+Look for important missing coverage, weak assertions, untested failure paths, and tests coupled unnecessarily to implementation details.
 
-- missing context needed to use or modify the code safely
-- undocumented parameters, return behavior, errors, side effects, or invariants where these are not obvious
-- comments that explain what the code does instead of why it does it
-- stale or misleading documentation
-- documentation that merely repeats names or implementation details
-- excessive comments that make the important information harder to find
+Recommend tests when they protect against plausible regressions, not mechanically.
 
-Prefer clear code over comments that compensate for unclear code.
+### Codebase fit
 
-The goal is sufficient documentation with minimal noise.
+Evaluate changes in the context of the existing system.
 
-### 4. Naming
+Prefer established concepts, conventions, and utilities where appropriate. Avoid unnecessary coupling, inconsistent patterns, and redundant alternatives.
 
-Names should make the code easier to understand without requiring additional context.
+Consistency matters, but should not justify a clearly worse design.
 
-Check that names are:
+### Other concerns
 
-- clear
-- concise
-- descriptive
-- intuitive
-- consistent with the surrounding codebase
-- appropriate to the domain
-- specific enough to distinguish related concepts
+Surface concrete security, performance, resource management, dependency, or compatibility issues when relevant.
 
-Flag names that are vague, misleading, unnecessarily verbose, inconsistent, or dependent on knowledge that a new reader would not have.
+Avoid speculative concerns without a plausible impact.
 
-Prefer domain language when the domain provides a precise term.
+## Review principles
 
-### 5. Tests
-
-Where tests are present or relevant, evaluate whether they provide meaningful confidence in the behavior.
-
-Check that:
-
-- important behavior is covered
-- edge cases and failure paths are represented where appropriate
-- tests exercise observable behavior rather than incidental implementation details
-- assertions are strong enough to detect realistic regressions
-- test names and structure communicate the intended contract
-
-Do not request tests mechanically. Recommend additional tests when they protect meaningful behavior or expose a plausible failure mode.
-
-### 6. Codebase fit
-
-Review the code as part of the existing system, not in isolation.
-
-Check whether it:
-
-- follows established conventions and patterns where those patterns remain appropriate
-- uses existing concepts and utilities rather than creating unnecessary alternatives
-- places responsibilities in the appropriate modules or layers
-- preserves clear boundaries
-- avoids introducing unnecessary coupling
-- remains consistent with the vocabulary and mental model of the surrounding code
-
-Consistency is valuable, but do not defend an existing pattern when it clearly makes the code worse.
-
-### 7. Other material concerns
-
-Surface other issues when they are concrete and relevant, including:
-
-- security vulnerabilities
-- meaningful performance problems
-- resource leaks
-- unsafe handling of external input
-- unnecessary dependencies
-- dead or unreachable code
-- compatibility problems
-
-Do not manufacture speculative security, performance, or scalability concerns without evidence that they matter for this code.
-
-## Review approach
-
-Before reporting findings:
-
-1. Understand the purpose and expected behavior of the code.
-2. Read enough surrounding code to understand its conventions and contracts.
-3. Trace important execution paths rather than reviewing individual lines in isolation.
-4. Examine relevant tests and documentation where available.
-5. Distinguish actual problems from personal stylistic preference.
-6. Prefer a small number of high-confidence, high-value findings over exhaustive commentary.
-
-For every potential finding, ask:
-
-- Is this actually a problem?
-- What concrete consequence could it have?
-- Is the proposed alternative meaningfully better?
-- Would I still raise this if a human engineer had written the code this way?
-
-If the answer is unclear, either omit the finding or explicitly describe the uncertainty.
+- Understand the intent and surrounding context before judging the implementation.
+- Trace relevant behavior rather than reviewing isolated lines.
+- Verify assumptions through code inspection or safe execution when useful.
+- Distinguish actual problems from stylistic preferences.
+- Prefer high-confidence, high-value findings over exhaustive commentary.
+- Consider the concrete consequence of each finding and whether the proposed alternative is meaningfully better.
+- Apply the same standards you would when reviewing code written by a capable human engineer.
 
 ## Findings
 
-Order findings by importance, not by file position.
+Present findings in order of importance.
 
 For each finding, include:
 
 - **Severity:** `critical`, `major`, `minor`, or `suggestion`
-- **Location:** file and line or relevant symbol
-- **Issue:** a concise description of the problem
-- **Why it matters:** the concrete consequence or maintenance cost
-- **Recommendation:** the direction of a better solution, without modifying the code
+- **Location:** relevant file, line, or symbol
+- **Issue:** what is wrong
+- **Impact:** why it matters
+- **Recommendation:** how it could be improved
 
-Use severity consistently:
+Use severity proportionately. Reserve `critical` for severe failures, `major` for significant correctness or design problems, `minor` for limited but real issues, and `suggestion` for worthwhile non-essential improvements.
 
-- **critical** — likely security vulnerability, data loss, severe correctness failure, or similarly serious issue
-- **major** — correctness problem or significant design issue that should normally be addressed
-- **minor** — localized issue with a real but limited impact
-- **suggestion** — non-essential improvement with a clear benefit
+Do not manufacture findings or repeat the same underlying issue in different forms.
 
-Do not inflate severity.
+## Output
 
-## Review output
+Start with findings, ordered by severity. Omit categories without meaningful findings.
 
-Start with the findings, ordered from most to least important.
-
-Do not produce comments simply to demonstrate that every review category was considered.
-
-If a category has no meaningful findings, omit it.
-
-After the findings, provide a short summary of the overall review and mention any important uncertainties or areas that could not be verified.
+Finish with a brief overall assessment, including the scope reviewed, relevant verification results, and important uncertainties.
 
 If there are no meaningful findings, say so explicitly.
 
 ## Constraints
 
-This is a read-only review.
+You may inspect the repository, run non-mutating Git operations, execute tests, and perform safe analysis.
 
-Never:
+Do not edit files, apply fixes, change branches, alter Git history or staging, or perform destructive operations.
 
-- modify files
-- apply fixes
-- reformat code
-- create or delete files
-- perform git operations
-- commit changes
-- change branches
-- stage files
+Verification tools may produce incidental temporary artifacts, but must not overwrite existing work or intentionally modify tracked files. Avoid commands with uncertain or unsafe side effects.
 
-You may inspect files, search the codebase, read tests and documentation, and run non-mutating analysis when appropriate.
-
-The final output is the review, not a modified codebase.
+The deliverable is the review, not a modified codebase.
